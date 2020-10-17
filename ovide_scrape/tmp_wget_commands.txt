@@ -1,0 +1,5 @@
+wget -q -O images/002v.jpg https://rnbi.rouen.fr/sites/default/files/base-image/3343.jpg
+wget -q -O images/003.jpg https://rnbi.rouen.fr/sites/default/files/base-image/3344.jpg
+wget -q -O images/003v.jpg https://rnbi.rouen.fr/sites/default/files/base-image/3345.jpg
+wget -q -O images/004.jpg https://rnbi.rouen.fr/sites/default/files/base-image/3346.jpg
+wget -q -O images/004v.jpg https://rnbi.rouen.fr/sites/default/files/base-image/3347.jpg

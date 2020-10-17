@@ -1,0 +1,66 @@
+Unfortunately most of the cool code stuff I've done was in support of my previous job, but here's a python webpage scraper that I wrote for a friend (let's call him Jake):
+
+############### ovide_scrape.py #################
+
+import re
+from bs4 import BeautifulSoup
+from os import walk
+import csv 
+
+pages = []
+
+# operating now on local files
+filenames = []
+for _, _, fnames in walk('htmlpages'):
+    filenames.extend(fnames)
+for fname in filenames:
+    content = ''
+    with open('htmlpages/'+fname) as f:
+        content = f.read()
+    print('parsing {} ...'.format(fname))
+    
+    soup = BeautifulSoup(content, 'html.parser')
+    img_link = soup.find('a', href=re.compile("[0-9][0-9][0-9][0-9]\.jpg"))
+    img_url = img_link['href']
+
+    page_info = soup.find('a', alt=re.compile("Ms O 4"))
+    page_num = page_info["title"][10:]
+
+    legend = ' ' 
+    legend_tag = soup.find('div', string=re.compile("Légende"))
+    if legend_tag is not None:
+        legend = legend_tag.find_next_sibling('div').div.a.string
+
+    pages.append([page_num,img_url,legend])
+
+pages_sorted = sorted(pages, key=lambda t: t[0])
+
+with open('imagemap.csv', 'w', newline='') as csvfile:
+    csvwriter = csv.writer(csvfile, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+    print('writing csv file...')
+    for row in pages_sorted:
+        csvwriter.writerow(row)
+
+################################
+
+I don't think any of this is super stand-out code, but I am proud of it because this is a recent project that a friend referred Jake to me for. He's working on a dissertation regarding this illuminated manuscript and the nature of the art within, and all the pages are scanned and freely available through some french library, BUT the web interface is garbage and the pages aren't searchable in any order, so using the website to do his research is out of the question. Having come to this conclusion some months ago, Jake actually determined that it would be easier to literally go to France and do this research in person with the physical manuscript. Then Covid happened and he was stuck, and I was able to help him! Apart from the occasional little script or sysadmin task I do for my wife, this was the first time I actually had a non-work project that was within my scope that was going to really help someone. 
+Two days, some investigation that made the scraping process a lot simpler than it initially seemed, and a few back-and-forths with Jake about the pertinent details later, and I sent him a folder with all the page and detail images, for example:
+...
+014v.jpg
+015r.jpg
+016r_détail_11478.jpg
+016r.jpg
+016v_détail_11479.jpg
+...
+and a spreadsheed with all relevant data:
+
+Cote	Image filename	Légende	Image URL	Page URL
+...
+014v	014v.jpg	[Sommaire analytique]	https://rnbi.rouen.fr/sites/default/files/base-image/3367.jpg	https://rnbi.rouen.fr/fr/notice/ovide-moralis%C3%A9-1289
+015r	015r.jpg	[Sommaire analytique]	https://rnbi.rouen.fr/sites/default/files/base-image/3368.jpg	https://rnbi.rouen.fr/fr/notice/ovide-moralis%C3%A9-1284
+016r détail	016r_détail_11478.jpg	La Création.	https://rnbi.rouen.fr/sites/default/files/base-image/11478.jpg	https://rnbi.rouen.fr/fr/notice/ovide-moralis%C3%A9-1309
+016r	016r.jpg	La Création.	https://rnbi.rouen.fr/sites/default/files/base-image/3370.jpg	https://rnbi.rouen.fr/fr/notice/ovide-moralis%C3%A9-1306
+016v détail	016v_détail_11479.jpg	La Création.	https://rnbi.rouen.fr/sites/default/files/base-image/11479.jpg	https://rnbi.rouen.fr/fr/notice/ovide-moralis%C3%A9-791
+...
+
+All in all a really fun really useful project, and not too bad for my first web scraper :)

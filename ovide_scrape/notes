@@ -1,0 +1,18 @@
+'Cote' field and 'Légende' field are important metadata
+
+cote Ms O 4 f° 390 means [Ms 0 4] shelf mark for entire manuscript [390] page
+
+so 'cote' is a weird french word that can mean a lot of things, but basically it means 'call number' here. in this case the 'cote' is made up of two parts for each page. the first is the shelfmark, the call number of the manuscript itself. that part has the prefix MS (which means manuscript). the manuscript's shelfmark follows "O 4" and then the second part of the cote follows this. that is the folio number, or the page number. that also has a prefix 'f°' and then the folio number/page number follows
+folio numbers in the website are three digits followed by a letter. so the page i screencapped is 'Ms O 4 f° 029v'
+the final letter can be an 'r' (recto, front) or 'v' (verso, back). so this is the back of the 29th sheet in manuscript 0 4
+
+an omitted trailing letter means that it's an r
+
+ending in "detail" just means a detail from a particular page
+
+
+ok looks like pages are nicely ordered URLS of the form https://rnbi.rouen.fr/en/notice/ovide-moralis%C3%A9-1311, where the trailing number goes from 1-1311
+
+ok and it looks like they're just numbers, unordered, no letters like the pages with 'r' and 'v'
+
+

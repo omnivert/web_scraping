@@ -1,0 +1,5 @@
+curl https://rnbi.rouen.fr/sites/default/files/base-image/3343.jpg --output images/002v.jpg --silent
+curl https://rnbi.rouen.fr/sites/default/files/base-image/3344.jpg --output images/003.jpg --silent
+curl https://rnbi.rouen.fr/sites/default/files/base-image/3345.jpg --output images/003v.jpg --silent
+curl https://rnbi.rouen.fr/sites/default/files/base-image/3346.jpg --output images/004.jpg --silent
+curl https://rnbi.rouen.fr/sites/default/files/base-image/3347.jpg --output images/004v.jpg --silent

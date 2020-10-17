@@ -1,0 +1,12 @@
+python gen_curl_commands.py > curl_commands.txt
+head -n5 curl_commands.txt > tmp_curl_commands.txt
+while read p; do echo $p; done < tmp_curl_commands.txt
+
+python gen_wget_commands.py > wget_commands.txt
+head -n5 wget_commands.txt > tmp_wget_commands.txt
+while read p; do echo $p; done < tmp_wget_commands.txt
+
+#renaming ###.jpg to ###r.jpg
+for f in $(find . -name '[0-9][0-9][0-9]\.jpg'); do mv -- "$f" "${f/.jpg/r.jpg}"; done
+
+

@@ -2,3 +2,4 @@ from bs4 import BeautifulSoup as bsp
 with open('htmlpages/cycles.d/cycle_17071.d/record_32666.html') as f:
     content = f.read()
 soup = bsp(content, 'html.parser')
+soup.img.find_parent()['href']

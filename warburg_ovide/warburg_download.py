@@ -5,7 +5,8 @@ from pathlib import Path as pth
 
 ###### DOWNLOAD ALL REQUIRED HTML PAGES ######
 
-warburg_search_url = 'https://iconographic.warburg.sas.ac.uk/vpc/VPC_search/'
+warburg_vpc_url = 'https://iconographic.warburg.sas.ac.uk/vpc/'
+warburg_search_url = warburg_vpc_url + 'VPC_search/'
 ovide_cycles_suffix = 'subcats.php?cat_1=8&cat_2=16&cat_3=1524&cat_4=2079'
 #cycles_url = 'https://iconographic.warburg.sas.ac.uk/vpc/VPC_search/subcats.php?cat_1=8&cat_2=16&cat_3=1524&cat_4=2079'
 cycles_url = warburg_search_url + ovide_cycles_suffix
@@ -53,7 +54,9 @@ for c_url in cycle_url_list:
     else:
         print('file '+cwd+'/'+c_fname+' already exists')
 
-# now for the first large group download
+# now for the large group download
+# so this is for each cycle, download all associated
+# fol. html files, then all the corresponding pdfs
 for c_url in cycle_url_list:
     cwd = 'htmlpages/cycles.d'
     with open(cwd+'/'+'cycle_'+c_url[111:]+'.html') as f:
@@ -82,3 +85,19 @@ for c_url in cycle_url_list:
                 f.write(page.text)
         else:
             print('file '+cwd+'/'+pg_fname+' already exists')
+
+        # now to download the pdfs
+        # BECAUSE I'M SO GREAT, i can build the link directly without
+        # even dealing with the iframe garbage.
+        pdf_cwd = 'pdfs'
+        with open(cwd+'/'+pg_fname) as f:
+            r_content = f.read()
+        record_sp = (r_content, 'html.parser')
+# lol TODO 
+# some of these images / pdfs are hosted externally. 
+# at least the ones on BnF gallica look pretty simple to pull
+# no iframe bs
+        print(pg_fname)
+        pdf_id = record_sp.img.find_parent()['href']
+        print(pdf_id)
+        exit(0)

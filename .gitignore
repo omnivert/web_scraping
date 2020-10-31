@@ -1,4 +1,5 @@
 *.zip
+.python-version
 images*/
 htmlpages/
 prev/

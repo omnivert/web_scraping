@@ -89,15 +89,24 @@ for c_url in cycle_url_list:
         # now to download the pdfs
         # BECAUSE I'M SO GREAT, i can build the link directly without
         # even dealing with the iframe garbage.
-        pdf_cwd = 'pdfs'
+        img_cwd = 'pdfs'
         with open(cwd+'/'+pg_fname) as f:
             r_content = f.read()
-        record_sp = (r_content, 'html.parser')
+        record_sp = bsp(r_content, 'html.parser')
 # lol TODO 
 # some of these images / pdfs are hosted externally. 
 # at least the ones on BnF gallica look pretty simple to pull
 # no iframe bs
+
         print(pg_fname)
-        pdf_id = record_sp.img.find_parent()['href']
-        print(pdf_id)
+        print(pg_url)
+        external_img = 'photo on external web page' in r_content
+        print(external_img)
+        img_id = record_sp.img.find_parent()['href']
+        print(img_id)
+        if not external_img:
+            # pdfs are of the form
+            # https://iconographic.warburg.sas.ac.uk/vpc/pdfs_wi_id/00028642.pdf
+            img_link = warburg_vpc_url + 'pdfs_wi_id/' + img_id[21:] + '.pdf'
+            print(img_link)
         exit(0)

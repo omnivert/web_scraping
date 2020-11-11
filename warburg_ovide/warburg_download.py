@@ -1,9 +1,17 @@
-import requests, csv
+import requests, csv, logging
 from bs4 import BeautifulSoup as bsp
 from os import walk
 from pathlib import Path as pth
 
 ###### DOWNLOAD ALL REQUIRED HTML PAGES ######
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
+ch = logging.StreamHandler()
+ch.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+ch.setFormatter(formatter)
+logger.addHandler(ch)
 
 warburg_vpc_url = 'https://iconographic.warburg.sas.ac.uk/vpc/'
 warburg_search_url = warburg_vpc_url + 'VPC_search/'
@@ -21,14 +29,14 @@ for _, _, fnames in walk(cwd):
 if cycles_fname not in htmlpages:
     page = requests.get(cycles_url)
     with open(cwd+'/'+cycles_fname, 'w') as f:
-        print('writing ' + cwd+'/'+cycles_fname + '...')
+        logger.debug('writing ' + cwd+'/'+cycles_fname + '...')
         f.write(page.text)
 else:
-    print('file '+cwd+'/'+cycles_fname+' already exists')
+    logger.debug('file '+cwd+'/'+cycles_fname+' already exists')
 # now parse all the cycles in the list:
 with open(cwd+'/'+cycles_fname) as f:
     content = f.read()
-print('parsing cycle list...')
+logger.debug('parsing cycle list...')
 soup = bsp(content, 'html.parser')
 cycle_list = soup.div.table.find_all_next('a')
 cycle_url_list = []
@@ -49,10 +57,10 @@ for c_url in cycle_url_list:
     if c_fname not in htmlpages_cyclesd:
         page = requests.get(c_url)
         with open(cwd+'/'+c_fname, 'w') as f:
-            print('writing ' + cwd+'/'+c_fname + ' ...')
+            logger.debug('writing ' + cwd+'/'+c_fname + ' ...')
             f.write(page.text)
     else:
-        print('file '+cwd+'/'+c_fname+' already exists')
+        logger.debug('file '+cwd+'/'+c_fname+' already exists')
 
 # now for the large group download
 # so this is for each cycle, download all associated
@@ -61,7 +69,7 @@ for c_url in cycle_url_list:
     cwd = 'htmlpages/cycles.d'
     with open(cwd+'/'+'cycle_'+c_url[111:]+'.html') as f:
         c_content = f.read()
-    print('parsing cycle_{}.html...'.format(c_url[111:]))
+    logger.debug('parsing cycle_{}.html...'.format(c_url[111:]))
     sp = bsp(c_content, 'html.parser')
     pg_list = sp.div.table.find_all_next('a')[1:]
     pg_url_list = []
@@ -81,10 +89,10 @@ for c_url in cycle_url_list:
         if pg_fname not in pg_htmlpages:
             page = requests.get(pg_url)
             with open(cwd+'/'+pg_fname, 'w') as f:
-                print('writing ' + cwd+'/'+pg_fname + ' ...')
+                logger.debug('writing ' + cwd+'/'+pg_fname + ' ...')
                 f.write(page.text)
         else:
-            print('file '+cwd+'/'+pg_fname+' already exists')
+            logger.debug('file '+cwd+'/'+pg_fname+' already exists')
 
         # now to download the pdfs
         # BECAUSE I'M SO GREAT, i can build the link directly without
@@ -98,15 +106,33 @@ for c_url in cycle_url_list:
 # at least the ones on BnF gallica look pretty simple to pull
 # no iframe bs
 
-        print(pg_fname)
-        print(pg_url)
+        logger.debug(pg_fname)
+        logger.debug(pg_url)
         external_img = 'photo on external web page' in r_content
-        print(external_img)
+        logger.debug(external_img)
         img_id = record_sp.img.find_parent()['href']
-        print(img_id)
+        logger.debug(img_id)
         if not external_img:
             # pdfs are of the form
             # https://iconographic.warburg.sas.ac.uk/vpc/pdfs_wi_id/00028642.pdf
             img_link = warburg_vpc_url + 'pdfs_wi_id/' + img_id[21:] + '.pdf'
-            print(img_link)
+            
+            logger.debug(img_link)
         exit(0)
+
+# TINY LITTLE RETHINK
+# i need to track the tree: ovide -> cycle name -> fol no.
+# that needs to be the directory structure for chris
+# and the naming scheme should reflect info, so like
+# 'bruges_colard_mansion_fol_6v_55831.pdf
+# the last group of numbers being the record id, which i'm 
+# pretty sure are globally (if not locally) unique.
+
+# so this all means i should do a few things
+# 1st -> refactor into reusable pieces, there's a lot of 
+# duplicated effort in this program
+# 2nd -> add argparse, -v option, -h option, --gen-wget option
+# 3rd -> add internal structure that maintains site tree
+# 4th -> implement --gen-wget output
+# 5th -> write internal tree to csv. hm.
+# that's all for now, more work to follow

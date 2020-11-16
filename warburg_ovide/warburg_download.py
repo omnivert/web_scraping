@@ -3,7 +3,27 @@ from bs4 import BeautifulSoup as bsp
 from os import walk
 from pathlib import Path as pth
 
-###### DOWNLOAD ALL REQUIRED HTML PAGES ######
+# TINY LITTLE RETHINK
+# i need to track the tree: ovide -> cycle name -> fol no.
+# that needs to be the directory structure for chris
+# and the naming scheme should reflect info, so like
+# 'bruges_colard_mansion_fol_6v_55831.pdf
+# the last group of numbers being the record id, which i'm 
+# pretty sure are globally (if not locally) unique.
+
+# so this all means i should do a few things
+# 1st -> refactor into reusable pieces, there's a lot of 
+# duplicated effort in this program
+# 2nd -> add argparse, -v option, -h option, --gen-wget option
+# 3rd -> add internal structure that maintains site tree
+# ### tree structure added ###
+# 4th -> implement --gen-wget output
+# 5th -> write internal tree to csv. hm.
+# that's all for now, more work to follow
+
+###### SETUP THINGS ######
+
+# logging setup
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
@@ -13,12 +33,56 @@ formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(messag
 ch.setFormatter(formatter)
 logger.addHandler(ch)
 
+# basic tree with arbitrary children, thank you stackoverflow
+# data is expected to be a dict with the following values:
+#   url
+#   name (might have to specify regex or something)
+#   parent (path on filesystem)
+
+class Node:
+    def __init__(self, data):
+        self.children = []
+        self.data = data
+
+###### DOWNLOAD ALL REQUIRED HTML PAGES ######
+
+# so each time i'm downloading a bunch of stuff, what i'm actually doing is:
+# setting correct URL
+# setting correct cwd
+# checking and making cwd
+# downloading url html contents to memory (soup)
+# finding and returning all URLs i care about
+
 warburg_vpc_url = 'https://iconographic.warburg.sas.ac.uk/vpc/'
 warburg_search_url = warburg_vpc_url + 'VPC_search/'
 ovide_cycles_suffix = 'subcats.php?cat_1=8&cat_2=16&cat_3=1524&cat_4=2079'
 #cycles_url = 'https://iconographic.warburg.sas.ac.uk/vpc/VPC_search/subcats.php?cat_1=8&cat_2=16&cat_3=1524&cat_4=2079'
 cycles_url = warburg_search_url + ovide_cycles_suffix
-# if the downloaded html page doesn't exist, save it
+
+# takes a node, naming regex, and outputs proper filename
+# maybe expect namerules to be nameless function
+# then the text of this method is more like
+# node.data[path] + namerules(node.data[url])
+# TODO test this out, mb move to new file, treat this one as reference?
+def gen_filename(node, namerules):
+    print('gen_filename')
+    exit(0)
+
+# hmmmmmmm
+# i think i just need to think about this on paper
+# take site node
+#   contains url, html data as soup, cwd, "location" ie search terms to find leaves
+def find_leaves(node):
+    print('find_leaves')
+    exit(0)
+    
+
+#warburg_vpc_url = 'https://iconographic.warburg.sas.ac.uk/vpc/'
+#warburg_search_url = warburg_vpc_url + 'VPC_search/'
+#ovide_cycles_suffix = 'subcats.php?cat_1=8&cat_2=16&cat_3=1524&cat_4=2079'
+##cycles_url = 'https://iconographic.warburg.sas.ac.uk/vpc/VPC_search/subcats.php?cat_1=8&cat_2=16&cat_3=1524&cat_4=2079'
+#cycles_url = warburg_search_url + ovide_cycles_suffix
+## if the downloaded html page doesn't exist, save it
 cycles_fname = 'cycles.html'
 ## TODO check for existence of htmlpages dir
 cwd = 'htmlpages'
@@ -120,19 +184,3 @@ for c_url in cycle_url_list:
             logger.debug(img_link)
         exit(0)
 
-# TINY LITTLE RETHINK
-# i need to track the tree: ovide -> cycle name -> fol no.
-# that needs to be the directory structure for chris
-# and the naming scheme should reflect info, so like
-# 'bruges_colard_mansion_fol_6v_55831.pdf
-# the last group of numbers being the record id, which i'm 
-# pretty sure are globally (if not locally) unique.
-
-# so this all means i should do a few things
-# 1st -> refactor into reusable pieces, there's a lot of 
-# duplicated effort in this program
-# 2nd -> add argparse, -v option, -h option, --gen-wget option
-# 3rd -> add internal structure that maintains site tree
-# 4th -> implement --gen-wget output
-# 5th -> write internal tree to csv. hm.
-# that's all for now, more work to follow

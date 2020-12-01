@@ -40,8 +40,9 @@ logger.addHandler(ch)
 #   parent (path on filesystem)
 
 class Node:
-    def __init__(self, branches=None, trunk=None, **data):
+    def __init__(self, branches=None, trunk=None, **kwargs):
         self.branches = branches or []
+        self.data = kwargs
         self.trunk = trunk
         for branch in self.branches:
             branch.trunk = self
@@ -62,6 +63,8 @@ class Node:
 def expand_branches(node, branchrules, urlrules, dirnamerules, fnamerules):
     cwd = node.data['cwd']
     fname = node.data['fname']    
+    with open(cwd+'/'+fname) as f:
+        content = f.read()
     logger.debug('expanding {} branches...'.format(fname))
     soup = bsp(content, 'html.parser')
     ## TODO this is the line that really needs figuring out
@@ -69,6 +72,8 @@ def expand_branches(node, branchrules, urlrules, dirnamerules, fnamerules):
     #  soup.div.table.find_all_next('a')
     # or whatever. just returns a list of html tags that match search criteria
     branch_url_list = branchrules(soup)
+    print(branch_url_list)
+    exit(0)
     ## TODO we also need to figure out the cwd and dirname stuff first
     # so basically we need to figure out the dir these things will live in, 
     # make that dir, set cwd to that dir, then for each branch
@@ -128,6 +133,6 @@ cycles_url = warburg_search_url + ovide_cycles_suffix
 
 cycles = Node([], url=cycles_url, fname='cycles.html', cwd='htmlpages')
 download_page(cycles)
-cycles = expand_branches(cycles, 'hello')
-exit(0)
+# def expand_branches(node, branchrules, urlrules, dirnamerules, fnamerules):
+cycles = expand_branches(cycles, (lambda x: x.div.table.find_all_next('a')), 'none', 'none', 'none')
 # TODO TEST TEST TEST

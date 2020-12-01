@@ -9,20 +9,21 @@ from pathlib import Path as pth
 ##cycles_url = 'https://iconographic.warburg.sas.ac.uk/vpc/VPC_search/subcats.php?cat_1=8&cat_2=16&cat_3=1524&cat_4=2079'
 #cycles_url = warburg_search_url + ovide_cycles_suffix
 ## if the downloaded html page doesn't exist, save it
-cycles_fname = 'cycles.html'
-## TODO check for existence of htmlpages dir
-cwd = 'htmlpages'
-pth('./'+cwd).mkdir(parents=True, exist_ok=True)
-htmlpages = []
-for _, _, fnames in walk(cwd):
-    htmlpages.extend(fnames)
-if cycles_fname not in htmlpages:
-    page = requests.get(cycles_url)
-    with open(cwd+'/'+cycles_fname, 'w') as f:
-        logger.debug('writing ' + cwd+'/'+cycles_fname + '...')
-        f.write(page.text)
-else:
-    logger.debug('file '+cwd+'/'+cycles_fname+' already exists')
+# *** MORE OR LESS COVERED IN NEW download_page() METHOD
+# **** cycles_fname = 'cycles.html'
+# **** ## TODO check for existence of htmlpages dir
+# **** cwd = 'htmlpages'
+# **** pth('./'+cwd).mkdir(parents=True, exist_ok=True)
+# **** htmlpages = []
+# **** for _, _, fnames in walk(cwd):
+# ****     htmlpages.extend(fnames)
+# **** if cycles_fname not in htmlpages:
+# ****     page = requests.get(cycles_url)
+# ****     with open(cwd+'/'+cycles_fname, 'w') as f:
+# ****         logger.debug('writing ' + cwd+'/'+cycles_fname + '...')
+# ****         f.write(page.text)
+# **** else:
+# ****     logger.debug('file '+cwd+'/'+cycles_fname+' already exists')
 # now parse all the cycles in the list:
 with open(cwd+'/'+cycles_fname) as f:
     content = f.read()

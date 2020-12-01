@@ -40,39 +40,62 @@ logger.addHandler(ch)
 #   parent (path on filesystem)
 
 class Node:
-    def __init__(self, children=None, parent=None, **kwargs):
-        self.children = children or []
-        self.parent = parent
-        self.data = kwargs
-        for child in self.children:
-            child.parent = self
+    def __init__(self, branches=None, trunk=None, **data):
+        self.branches = branches or []
+        self.trunk = trunk
+        for branch in self.branches:
+            branch.trunk = self
 
-# takes a node, naming regex, and outputs proper filename
-# maybe expect namerules to be nameless function
-# then the text of this method is more like
-# node.data[path] + namerules(node.data[url])
-# TODO test this out, mb move to new file, treat this one as reference?
-def gen_filename(node, namerules):
-    print('gen_filename')
-    exit(0)
-
-# another string gen that takes a function
-# in this case we want to make a url
-def gen_leaf_url(node, namerules):
-    print('gen_leaf_url')
-    exit(0)
+    def assign_branches(self, branchlist):
+        for branch in branchlist:
+            branch.trunk = self
+            self.branches.append(branch)
 
 # hmmmmmmm
 # i think i just need to think about this on paper
-# take site node
-#   contains url, html data as soup, cwd, "location" ie search terms to find leaves
-def find_leaves(node):
-    print('find_leaves')
-    exit(0)
+# take site node, branchrules (function)
+# return list of branches
+## IMPORTANT CONVENTION ##
+# fname is the filename, not the full path. we're patching things together
+# when we write files with cwd + filename. only reason for this is to 
+# simplify the creation and standardization of the fname.d subdirs
+def expand_branches(node, branchrules, urlrules, dirnamerules, fnamerules):
+    cwd = node.data['cwd']
+    fname = node.data['fname']    
+    logger.debug('expanding {} branches...'.format(fname))
+    soup = bsp(content, 'html.parser')
+    ## TODO this is the line that really needs figuring out
+    # so for this line, in our code this looks like 
+    #  soup.div.table.find_all_next('a')
+    # or whatever. just returns a list of html tags that match search criteria
+    branch_url_list = branchrules(soup)
+    ## TODO we also need to figure out the cwd and dirname stuff first
+    # so basically we need to figure out the dir these things will live in, 
+    # make that dir, set cwd to that dir, then for each branch
+    #   - build the url
+    #   - set fname
+    #   - then create a Node with trunk, url, cwd, and fname all set, 
+    #     and add it to the list
+    # making the fname.d holding dir
+    # maybe we can completely generalize this
+    # TODO make sure this works as advertised
+    cwd = cwd + '/' + fname + '.d'
+    pth('./{}'.format(cwd)).mkdir(parents=True, exist_ok=True)
+    # now for the population of branch nodes
+    branches = []
+    for branch_url_suffix in branch_url_list:
+        ## TODO check this next piece of logic
+        # even just thinking about it now, this will be a hard one to generalize
+        branch_url = url_rules(node.data['url'], branch_url_suffix)#node.data['url'] + '/' + branch_url_suffix
+        branch_fname = fname_rules(cwd, branch_url_suffix)
+        branches.append(Node(trunk=node, url=branch_url, fname=branch_fname))
+    # that should do it
+    return branches
 
+# deals with downloading URL and saving it to the filesystem
 # mkdir -p parent dir
 # check if page present
-# if not, download
+# if not, download 
 def download_page(node):
     cwd = node.data['cwd']
     fname = node.data['fname']
@@ -105,5 +128,6 @@ cycles_url = warburg_search_url + ovide_cycles_suffix
 
 cycles = Node([], url=cycles_url, fname='cycles.html', cwd='htmlpages')
 download_page(cycles)
+cycles = expand_branches(cycles, 'hello')
 exit(0)
 # TODO TEST TEST TEST

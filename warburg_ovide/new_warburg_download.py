@@ -47,6 +47,7 @@ class Node:
         for branch in self.branches:
             branch.trunk = self
 
+    # TODO might not need this
     def assign_branches(self, branchlist):
         for branch in branchlist:
             branch.trunk = self
@@ -60,40 +61,26 @@ class Node:
 # fname is the filename, not the full path. we're patching things together
 # when we write files with cwd + filename. only reason for this is to 
 # simplify the creation and standardization of the fname.d subdirs
-def expand_branches(node, branchrules, urlrules, dirnamerules, fnamerules):
+def expand_branches(node, branchrules, dirnamerules, urlrules, fnamerules):
     cwd = node.data['cwd']
     fname = node.data['fname']    
     with open(cwd+'/'+fname) as f:
         content = f.read()
     logger.debug('expanding {} branches...'.format(fname))
     soup = bsp(content, 'html.parser')
-    ## TODO this is the line that really needs figuring out
-    # so for this line, in our code this looks like 
-    #  soup.div.table.find_all_next('a')
-    # or whatever. just returns a list of html tags that match search criteria
+    # this applies the branchrules lambda to the parsed soup
     branch_url_list = branchrules(soup)
-    print(branch_url_list)
-    exit(0)
-    ## TODO we also need to figure out the cwd and dirname stuff first
-    # so basically we need to figure out the dir these things will live in, 
-    # make that dir, set cwd to that dir, then for each branch
-    #   - build the url
-    #   - set fname
-    #   - then create a Node with trunk, url, cwd, and fname all set, 
-    #     and add it to the list
-    # making the fname.d holding dir
-    # maybe we can completely generalize this
-    # TODO make sure this works as advertised
-    cwd = cwd + '/' + fname + '.d'
+    # this applies the dirnamerules lambda to cwd and fname
+    cwd = dirnamerules(cwd, fname)
     pth('./{}'.format(cwd)).mkdir(parents=True, exist_ok=True)
     # now for the population of branch nodes
     branches = []
     for branch_url_suffix in branch_url_list:
-        ## TODO check this next piece of logic
-        # even just thinking about it now, this will be a hard one to generalize
-        branch_url = url_rules(node.data['url'], branch_url_suffix)#node.data['url'] + '/' + branch_url_suffix
-        branch_fname = fname_rules(cwd, branch_url_suffix)
+        branch_url = urlrules(branch_url_suffix)
+        branch_fname = fnamerules(branch_url)
         branches.append(Node(trunk=node, url=branch_url, fname=branch_fname))
+        print(branch_url, branch_fname)
+    exit(0)
     # that should do it
     return branches
 
@@ -118,13 +105,6 @@ def download_page(node):
     
 ###### DOWNLOAD ALL REQUIRED HTML PAGES ######
 
-# so each time i'm downloading a bunch of stuff, what i'm actually doing is:
-# setting correct URL
-# setting correct cwd
-# checking and making cwd
-# downloading url html contents to memory (soup)
-# finding and returning all URLs i care about
-
 warburg_vpc_url = 'https://iconographic.warburg.sas.ac.uk/vpc/'
 warburg_search_url = warburg_vpc_url + 'VPC_search/'
 ovide_cycles_suffix = 'subcats.php?cat_1=8&cat_2=16&cat_3=1524&cat_4=2079'
@@ -133,6 +113,10 @@ cycles_url = warburg_search_url + ovide_cycles_suffix
 
 cycles = Node([], url=cycles_url, fname='cycles.html', cwd='htmlpages')
 download_page(cycles)
-# def expand_branches(node, branchrules, urlrules, dirnamerules, fnamerules):
-cycles = expand_branches(cycles, (lambda x: x.div.table.find_all_next('a')), 'none', 'none', 'none')
+# def expand_branches(node, branchrules, dirnamerules, urlrules, fnamerules):
+cycles = expand_branches(cycles, 
+                         (lambda x: x.div.table.find_all_next('a')), 
+                         (lambda x, y: x + '/' + y.split('.')[0] + '.d'), 
+                         (lambda x: warburg_search_url + x['href']), 
+                         (lambda x: 'cycle_' + x[111:] + '.html'))
 # TODO TEST TEST TEST

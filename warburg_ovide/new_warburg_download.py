@@ -53,6 +53,17 @@ class Node:
             branch.trunk = self
             self.branches.append(branch)
 
+    def get_level(self, level):
+        if level == 0:
+            return [self]
+        elif self.branches == []:
+            return []
+        else:
+            level_n_nodes = []
+            for branch in self.branches:
+                level_n_nodes = level_n_nodes + branch.get_level(level-1)
+            return level_n_nodes
+
 # hmmmmmmm
 # i think i just need to think about this on paper
 # take site node, branchrules (function)
@@ -78,30 +89,30 @@ def expand_branches(node, branchrules, dirnamerules, urlrules, fnamerules):
     for branch_url_suffix in branch_url_list:
         branch_url = urlrules(branch_url_suffix)
         branch_fname = fnamerules(branch_url)
-        branches.append(Node(trunk=node, url=branch_url, fname=branch_fname))
-        print(branch_url, branch_fname)
-    exit(0)
-    # that should do it
+        branches.append(Node(trunk=node, url=branch_url, fname=branch_fname, cwd=cwd))
     return branches
 
 # deals with downloading URL and saving it to the filesystem
 # mkdir -p parent dir
 # check if page present
 # if not, download 
-def download_page(node):
-    cwd = node.data['cwd']
-    fname = node.data['fname']
+def download_pages(nodelist):
+    # WARNING this is a big assumption, but it's our code so fuck it
+    # EVERYTHING IN NODELIST MUST HAVE THE SAME CWD
+    cwd = nodelist[0].data['cwd']
     pth('./{}'.format(cwd)).mkdir(parents=True, exist_ok=True)
     htmlpages = []
     for _, _, fnames in walk(cwd):
         htmlpages.extend(fnames)
-    if fname not in htmlpages:
-        page = requests.get(node.data['url'])
-        with open('./{}/{}'.format(cwd, fname), 'w') as f:
-            logger.debug('writing {}/{}...'.format(cwd, fname))
-            f.write(page.text)
-    else:
-        logger.debug('file {}/{} already exists'.format(cwd, fname))
+    for node in nodelist:
+        fname = node.data['fname']
+        if fname not in htmlpages:
+            page = requests.get(node.data['url'])
+            with open('./{}/{}'.format(cwd, fname), 'w') as f:
+                logger.debug('writing {}/{}...'.format(cwd, fname))
+                f.write(page.text)
+        else:
+            logger.debug('file {}/{} already exists'.format(cwd, fname))
     
 ###### DOWNLOAD ALL REQUIRED HTML PAGES ######
 
@@ -111,12 +122,25 @@ ovide_cycles_suffix = 'subcats.php?cat_1=8&cat_2=16&cat_3=1524&cat_4=2079'
 #cycles_url = 'https://iconographic.warburg.sas.ac.uk/vpc/VPC_search/subcats.php?cat_1=8&cat_2=16&cat_3=1524&cat_4=2079'
 cycles_url = warburg_search_url + ovide_cycles_suffix
 
-cycles = Node([], url=cycles_url, fname='cycles.html', cwd='htmlpages')
-download_page(cycles)
+cycles_trunk = Node([], url=cycles_url, fname='cycles.html', cwd='htmlpages')
+download_pages([cycles_trunk])
 # def expand_branches(node, branchrules, dirnamerules, urlrules, fnamerules):
-cycles = expand_branches(cycles, 
+# expand and dl first level, just the cycle mainpages
+cycles = expand_branches(cycles_trunk, 
                          (lambda x: x.div.table.find_all_next('a')), 
                          (lambda x, y: x + '/' + y.split('.')[0] + '.d'), 
                          (lambda x: warburg_search_url + x['href']), 
                          (lambda x: 'cycle_' + x[111:] + '.html'))
-# TODO TEST TEST TEST
+cycles_trunk.branches = cycles
+download_pages(cycles)
+# expand and dl second level, image info pages
+# TESTING get_level FUNCTION
+l_0 = cycles_trunk.get_level(0)
+l_1 = cycles_trunk.get_level(1)
+print('level 0')
+for node in l_0:
+    print(node.data['fname'])
+print('level 1')
+for node in l_1:
+    print(node.data['fname'])
+

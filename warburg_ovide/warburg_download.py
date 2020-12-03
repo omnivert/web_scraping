@@ -24,34 +24,34 @@ from pathlib import Path as pth
 # ****         f.write(page.text)
 # **** else:
 # ****     logger.debug('file '+cwd+'/'+cycles_fname+' already exists')
-# now parse all the cycles in the list:
-with open(cwd+'/'+cycles_fname) as f:
-    content = f.read()
-logger.debug('parsing cycle list...')
-soup = bsp(content, 'html.parser')
-cycle_list = soup.div.table.find_all_next('a')
-cycle_url_list = []
-for cycle_url in cycle_list:
-    cycle_full_url = warburg_search_url+cycle_url['href']
-    cycle_url_list.append(cycle_full_url)
-# now we move one dir down
-htmlpages_cyclesd = []
-cwd = 'htmlpages/cycles.d'
-pth('./'+cwd).mkdir(parents=True, exist_ok=True)
-# like above, make a list of what's already in the dir for checks
-for _, _, fnames in walk(cwd):
-    htmlpages_cyclesd.extend(fnames)
-# now for each cycle url name the html page the cat5 number in the url,
-# check if that file exists, if not download and save
-for c_url in cycle_url_list:
-    c_fname = 'cycle_'+c_url[111:]+'.html'
-    if c_fname not in htmlpages_cyclesd:
-        page = requests.get(c_url)
-        with open(cwd+'/'+c_fname, 'w') as f:
-            logger.debug('writing ' + cwd+'/'+c_fname + ' ...')
-            f.write(page.text)
-    else:
-        logger.debug('file '+cwd+'/'+c_fname+' already exists')
+# **** # now parse all the cycles in the list:
+# **** with open(cwd+'/'+cycles_fname) as f:
+# ****     content = f.read()
+# **** logger.debug('parsing cycle list...')
+# **** soup = bsp(content, 'html.parser')
+# **** cycle_list = soup.div.table.find_all_next('a')
+# **** cycle_url_list = []
+# **** for cycle_url in cycle_list:
+# ****     cycle_full_url = warburg_search_url+cycle_url['href']
+# ****     cycle_url_list.append(cycle_full_url)
+# **** # now we move one dir down
+# **** htmlpages_cyclesd = []
+# **** cwd = 'htmlpages/cycles.d'
+# **** pth('./'+cwd).mkdir(parents=True, exist_ok=True)
+# **** # like above, make a list of what's already in the dir for checks
+# **** for _, _, fnames in walk(cwd):
+# ****     htmlpages_cyclesd.extend(fnames)
+# **** # now for each cycle url name the html page the cat5 number in the url,
+# **** # check if that file exists, if not download and save
+# **** for c_url in cycle_url_list:
+# ****     c_fname = 'cycle_'+c_url[111:]+'.html'
+# ****     if c_fname not in htmlpages_cyclesd:
+# ****         page = requests.get(c_url)
+# ****         with open(cwd+'/'+c_fname, 'w') as f:
+# ****             logger.debug('writing ' + cwd+'/'+c_fname + ' ...')
+# ****             f.write(page.text)
+# ****     else:
+# ****         logger.debug('file '+cwd+'/'+c_fname+' already exists')
 
 # now for the large group download
 # so this is for each cycle, download all associated

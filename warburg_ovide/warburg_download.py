@@ -106,7 +106,10 @@ for c_url in cycle_url_list:
         if not external_img:
             # pdfs are of the form
             # https://iconographic.warburg.sas.ac.uk/vpc/pdfs_wi_id/00028642.pdf
-            img_link = warburg_vpc_url + 'pdfs_wi_id/' + img_id[21:] + '.pdf'
+            #   or
+            # http://gallica.bnf.fr/ark:/12148/bpt6k8523959/f747.item
+            #   v
+            # https://gallica.bnf.fr/ark:/12148/bpt6k8523959/f747.highres
             
             logger.debug(img_link)
         exit(0)

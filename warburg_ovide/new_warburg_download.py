@@ -72,7 +72,14 @@ class Node:
 # fname is the filename, not the full path. we're patching things together
 # when we write files with cwd + filename. only reason for this is to 
 # simplify the creation and standardization of the fname.d subdirs
-def expand_branches(node, branchrules, dirnamerules, urlrules, fnamerules):
+def expand_branches(node, branchrules, dirnamerules, urlrules, fnamerules, debug=False, sort=False, limit=0):
+    # to deal with the case of images, i think what we want to do is treat branchrules
+    # as a dict of { content check : branchrule }, so like 
+    #   soup.text.contains('external site') : branchrules 
+    # or something like that
+    # remember some way to preserve the file extension
+    # ...urlrules might also have to be a dict. gross
+
     cwd = node.data['cwd']
     fname = node.data['fname']    
     with open(cwd+'/'+fname) as f:
@@ -81,15 +88,22 @@ def expand_branches(node, branchrules, dirnamerules, urlrules, fnamerules):
     soup = bsp(content, 'html.parser')
     # this applies the branchrules lambda to the parsed soup
     branch_url_list = branchrules(soup)
+    # TODO BS4 Tag has no compare operator for < and >
+    #if sort:
+    #    branch_url_list = sorted(branch_url_list)
     # this applies the dirnamerules lambda to cwd and fname
     cwd = dirnamerules(cwd, fname)
     pth('./{}'.format(cwd)).mkdir(parents=True, exist_ok=True)
     # now for the population of branch nodes
     branches = []
-    for branch_url_suffix in branch_url_list:
+    for i, branch_url_suffix in enumerate(branch_url_list):
+        if limit > 0 and i >= limit:
+            break
         branch_url = urlrules(branch_url_suffix)
         branch_fname = fnamerules(branch_url)
         branches.append(Node(trunk=node, url=branch_url, fname=branch_fname, cwd=cwd))
+        if debug:
+            logger.debug('cwd {}; fname {}; url {}'.format(cwd, branch_fname, branch_url))
     return branches
 
 # deals with downloading URL and saving it to the filesystem
@@ -116,6 +130,10 @@ def download_pages(nodelist):
     
 ###### DOWNLOAD ALL REQUIRED HTML PAGES ######
 
+# NOTE i think this structure has merit, but it gets kinda gross too...
+# i want to just do something like f ( g ( h ( x ) ) ) or something, but 
+# that also strikes me as really messy
+
 warburg_vpc_url = 'https://iconographic.warburg.sas.ac.uk/vpc/'
 warburg_search_url = warburg_vpc_url + 'VPC_search/'
 ovide_cycles_suffix = 'subcats.php?cat_1=8&cat_2=16&cat_3=1524&cat_4=2079'
@@ -130,17 +148,41 @@ cycles = expand_branches(cycles_trunk,
                          (lambda x: x.div.table.find_all_next('a')), 
                          (lambda x, y: x + '/' + y.split('.')[0] + '.d'), 
                          (lambda x: warburg_search_url + x['href']), 
-                         (lambda x: 'cycle_' + x[111:] + '.html'))
+                         (lambda x: 'cycle_' + x[111:] + '.html'),
+                         sort=True, limit=3)
 cycles_trunk.branches = cycles
 download_pages(cycles)
-# expand and dl second level, image info pages
-# TESTING get_level FUNCTION
-l_0 = cycles_trunk.get_level(0)
-l_1 = cycles_trunk.get_level(1)
-print('level 0')
-for node in l_0:
-    print(node.data['fname'])
-print('level 1')
-for node in l_1:
-    print(node.data['fname'])
+# now branches of first level, fols in a cycle
+for cycle in cycles_trunk.get_level(1):
+    fols = expand_branches(cycle,
+                          (lambda x: list(set(x.div.table.find_all_next('a')[1:]))), 
+                          (lambda x, y: x + '/' + y.split('.')[0] + '.d'), 
+                          (lambda x: warburg_search_url + x['href']), 
+                          (lambda x: 'record_' + x[72:] + '.html'),
+                          sort=True, limit=3)
+    cycle.branches = fols
+    download_pages(fols)
+
+# now for the images, eg branches of the seconds level
+# gallica urls: 
+#   http://gallica.bnf.fr/ark:/12148/bpt6k8523959/f747.item
+#   http://gallica.bnf.fr/ark:/12148/bpt6k8523959/f89.image.html
+#       or
+#   https://gallica.bnf.fr/ark:/12148/bpt6k8523959/f89.highres
+#
+# warburg urls:
+#   pdf_portal.php?image=00012901
+#   https://iconographic.warburg.sas.ac.uk/vpc/VPC_search/pdf_portal.php?image=00028680
+#   https://iconographic.warburg.sas.ac.uk/vpc/VPC_search/pdf_frame.php?image=00028680
+#       or
+#   https://iconographic.warburg.sas.ac.uk/vpc/pdfs_wi_id/00028680.pdf
+#   https://iconographic.warburg.sas.ac.uk/vpc/pdfs_wi_id/00028642.pdf
+for fol in cycles_trunk.get_level(2):
+    images = expand_branches(fol,
+                            (lambda x: [x.img.find_parent()['href']]), 
+                            (lambda x, y: x + '/' + y.split('.')[0] + '.d'), 
+                            (lambda x: x), 
+                            (lambda x: 'record_' + x + '.html'),
+                            debug=True, limit=1)
+                             
 

@@ -1,4 +1,4 @@
-import requests, csv, logging
+import re, requests, csv, logging
 from bs4 import BeautifulSoup as bsp
 from os import walk
 from pathlib import Path as pth
@@ -47,11 +47,36 @@ class Node:
         for branch in self.branches:
             branch.trunk = self
 
-    # TODO might not need this
     def assign_branches(self, branchlist):
         for branch in branchlist:
             branch.trunk = self
             self.branches.append(branch)
+
+    def print_info(self):
+        print('self.trunk: {}'.format(self.trunk))
+        print('self: {}'.format(self))
+        print('self.branches: {}'.format(self.branches))
+        print('self.trunk.branches: {}'.format(self.trunk.branches))
+
+    def print_tree(self, maxdepth=5, level=0):
+        # TODO definitely need this
+        if maxdepth > 0:
+            prefix = '+-- '
+            for _ in range(level):
+                prefix = '|   ' + prefix
+            fname = self.data['fname'] if len(self.data['fname']) < 20 else self.data['fname'][:18] + '...'
+            print(prefix + fname)
+            if 'metadata' in self.data:
+                logger.debug('metadata check : {}'.format(self.data['metadata']))
+            for branch in self.branches:
+                branch.print_tree(maxdepth=maxdepth-1, level=level+1)
+
+    def swap_with(self, node):
+        #self.print_info()
+        if self.trunk:
+            self.trunk.branches.append(node)
+            self.trunk.branches.remove(self)
+        node.assign_branches(self.branches)
 
     def get_level(self, level):
         if level == 0:
@@ -84,7 +109,7 @@ def expand_branches(node, branchrules, dirnamerules, urlrules, fnamerules, debug
     fname = node.data['fname']    
     with open(cwd+'/'+fname) as f:
         content = f.read()
-    logger.debug('expanding {} branches...'.format(fname))
+    logger.debug('    > expanding {} branches...'.format(fname))
     soup = bsp(content, 'html.parser')
     # this applies the branchrules lambda to the parsed soup
     branch_url_list = branchrules(soup)
@@ -99,7 +124,10 @@ def expand_branches(node, branchrules, dirnamerules, urlrules, fnamerules, debug
     for i, branch_url_suffix in enumerate(branch_url_list):
         if limit > 0 and i >= limit:
             break
+        # TODO we need this on the last pass to just make the correct format
+        # final image URL - template is listed in the last call to branchnodes
         branch_url = urlrules(branch_url_suffix)
+        # crazy this next line actually works
         branch_fname = fnamerules(branch_url)
         branches.append(Node(trunk=node, url=branch_url, fname=branch_fname, cwd=cwd))
         if debug:
@@ -111,6 +139,7 @@ def expand_branches(node, branchrules, dirnamerules, urlrules, fnamerules, debug
 # check if page present
 # if not, download 
 def download_pages(nodelist):
+    logger.debug('    > downloading pages...')
     # WARNING this is a big assumption, but it's our code so fuck it
     # EVERYTHING IN NODELIST MUST HAVE THE SAME CWD
     cwd = nodelist[0].data['cwd']
@@ -127,6 +156,20 @@ def download_pages(nodelist):
                 f.write(page.text)
         else:
             logger.debug('file {}/{} already exists'.format(cwd, fname))
+
+def scrape_metadata(node):
+    # this is only about the images
+    # so node.trunk is where we get metadata from
+    # we use it to populate metadata field
+    # 12/24 TODO THIS IS WHERE WE LEFT OFF, STILL NEED TO CHECK THIS
+    metadata = 'testdata'
+    new_node = Node(metadata=metadata)
+# THIS OVERWRITES THE METADATA WE JUST ADDED, SWAP ORDER AGAIN???
+# TODO TODO TODO
+    new_node.data = node.data
+    node.swap_with(new_node)
+    logger.debug('newnode metadata = {}'.format(new_node.data['metadata']))
+    return node
     
 ###### DOWNLOAD ALL REQUIRED HTML PAGES ######
 
@@ -150,8 +193,9 @@ cycles = expand_branches(cycles_trunk,
                          (lambda x: warburg_search_url + x['href']), 
                          (lambda x: 'cycle_' + x[111:] + '.html'),
                          sort=True, limit=3)
-cycles_trunk.branches = cycles
+cycles_trunk.assign_branches(cycles)
 download_pages(cycles)
+
 # now branches of first level, fols in a cycle
 for cycle in cycles_trunk.get_level(1):
     fols = expand_branches(cycle,
@@ -159,8 +203,8 @@ for cycle in cycles_trunk.get_level(1):
                           (lambda x, y: x + '/' + y.split('.')[0] + '.d'), 
                           (lambda x: warburg_search_url + x['href']), 
                           (lambda x: 'record_' + x[72:] + '.html'),
-                          sort=True, limit=3)
-    cycle.branches = fols
+                          sort=True, limit=3, debug=True)
+    cycle.assign_branches(fols)
     download_pages(fols)
 
 # now for the images, eg branches of the seconds level
@@ -177,12 +221,35 @@ for cycle in cycles_trunk.get_level(1):
 #       or
 #   https://iconographic.warburg.sas.ac.uk/vpc/pdfs_wi_id/00028680.pdf
 #   https://iconographic.warburg.sas.ac.uk/vpc/pdfs_wi_id/00028642.pdf
+
+
 for fol in cycles_trunk.get_level(2):
     images = expand_branches(fol,
                             (lambda x: [x.img.find_parent()['href']]), 
-                            (lambda x, y: x + '/' + y.split('.')[0] + '.d'), 
-                            (lambda x: x), 
-                            (lambda x: 'record_' + x + '.html'),
+                            (lambda x, y: 'images'), 
+                            (lambda x: re.sub(r'(\.[a-z]+)+$', '.jpeg', x) if 'gallica' in x else warburg_vpc_url + 'pdfs_wi_id/' + x[21:] + '.pdf'), 
+                            (lambda x: 'template_'+x.split('/')[-1]),
                             debug=True, limit=1)
-                             
+    # annoyingly, i think this needs to have info from fol and images
+    # fol is a single node
+    # images is a length-1 list
+    # NEVER MIND WE CAN DO images[0].trunk
+    fol.assign_branches(images)
+# REMEMBER THIS IS WEIRD
+# RETURN OF SCRAPE METADATA IS JUST 1 NODE
+    images = scrape_metadata(images[0])
 
+cycles_trunk.print_tree()
+exit(0)
+    
+# TODO:
+# if i remember correctly, what i was thinking yday was that each thing
+# would get a placeholder name, after which we do an additional pass to 
+# "scrape metadata", in the process renaming the problem fname. 
+# THEN we download it
+
+                             
+# more dev info:
+#   htmlpages/cycles.d/cycle_17071.d/record_94084.html
+#   url http://gallica.bnf.fr/ark:/12148/bpt6k8523959/f60.highres
+#

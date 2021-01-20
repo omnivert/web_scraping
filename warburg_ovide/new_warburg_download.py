@@ -59,15 +59,17 @@ class Node:
         print('self.trunk.branches: {}'.format(self.trunk.branches))
 
     def print_tree(self, maxdepth=5, level=0):
-        # TODO definitely need this
+        # this is kinda specific for this site, but eh
         if maxdepth > 0:
             prefix = '+-- '
             for _ in range(level):
                 prefix = '|   ' + prefix
             fname = self.data['fname'] if len(self.data['fname']) < 20 else self.data['fname'][:18] + '...'
             print(prefix + fname)
+            if 'jpeg' in self.data['fname'] or 'pdf' in self.data['fname']:
+                print(prefix[:-4] + '    ' + self.data['url'])
             if 'metadata' in self.data:
-                logger.debug('metadata check : {}'.format(self.data['metadata']))
+                print(prefix[:-4] + '    ' + self.data['metadata'])
             for branch in self.branches:
                 branch.print_tree(maxdepth=maxdepth-1, level=level+1)
 
@@ -161,14 +163,45 @@ def scrape_metadata(node):
     # this is only about the images
     # so node.trunk is where we get metadata from
     # we use it to populate metadata field
-    # 12/24 TODO THIS IS WHERE WE LEFT OFF, STILL NEED TO CHECK THIS
-    metadata = 'testdata'
-    new_node = Node(metadata=metadata)
-# THIS OVERWRITES THE METADATA WE JUST ADDED, SWAP ORDER AGAIN???
-# TODO TODO TODO
+
+    # for record 94072
+    # t1 is grey_larger
+    # t2 grey_small
+    # everything else is content
+    # it feels like the easiest way to do this is to parse first
+    # list whatever order you see, t1 t2 c t2 c t1 t2 c whatever
+    # then convert that to a tree
+    # THEN find some way of representing that in text / csv form
+    # then that's the metadata and maybe we can finally download
+    # these goddamn things? 
+    # i'd really like to get this done. and the holiday letter 
+    # 
+    # after getting the above done, we need to get everything ready
+    # for the csv. i think i want to do that before download / 
+    # download logic.
+    # broad strokes:
+    # - we want something that likes multiple lines for the metadata
+    # - other than that save like csv, commas and newlines
+    #   or whatever, just need to be able to import into excel
+    # - fields to export:
+    #   - fname/loc
+    #   - url
+    #   - fol.
+    #   - metadata
+    # - export like that
+    # - then, downloading is weird. generating the file with all
+    #   the curl commands seemed to be the best way to do things?
+    # - then.... we're good?
+    #   
+    # doesn't seem too bad. keep a level head, slow pace, breaks 
+    # for the brain.
+
+    metadata = node.data['fname'] + ' testdata'
+    new_node = Node()
     new_node.data = node.data
+    new_node.data['metadata'] = metadata
     node.swap_with(new_node)
-    logger.debug('newnode metadata = {}'.format(new_node.data['metadata']))
+    #logger.debug('newnode metadata = {}'.format(new_node.data['metadata']))
     return node
     
 ###### DOWNLOAD ALL REQUIRED HTML PAGES ######

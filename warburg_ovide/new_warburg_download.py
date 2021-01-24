@@ -25,11 +25,13 @@ from pathlib import Path as pth
 
 # logging setup
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 ch = logging.StreamHandler()
-ch.setLevel(logging.DEBUG)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+ch.setLevel(logging.INFO)
+# don't need all this shit, is mainly just confusing
+#formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+formatter = logging.Formatter('%(levelname)s > %(message)s')
 ch.setFormatter(formatter)
 logger.addHandler(ch)
 
@@ -48,9 +50,11 @@ class Node:
             branch.trunk = self
 
     def assign_branches(self, branchlist):
+        logger.debug('{}.assign_branches({})'.format(self.data['fname'], branchlist))
         for branch in branchlist:
             branch.trunk = self
             self.branches.append(branch)
+            logger.debug('varcheck. trunk should = {}.\nvars: {}'.format(branch.trunk, vars(branch)))
 
     def print_info(self):
         print('self.trunk: {}'.format(self.trunk))
@@ -66,19 +70,28 @@ class Node:
                 prefix = '|   ' + prefix
             fname = self.data['fname'] if len(self.data['fname']) < 20 else self.data['fname'][:18] + '...'
             print(prefix + fname)
+            # this was useful and the right way to find obj attrs
+            # but for now, need to put these prints somewhere else to 
+            # trace things
+            #allvars = vars(self)
+            #print(prefix[:-4] + '    ' + '(allvars: {})'.format(allvars))
             if 'jpeg' in self.data['fname'] or 'pdf' in self.data['fname']:
+                #print(prefix[:-4] + '    ' + '>> IMG SPECIFIC INFO <<')
                 print(prefix[:-4] + '    ' + self.data['url'])
             if 'metadata' in self.data:
                 print(prefix[:-4] + '    ' + self.data['metadata'])
             for branch in self.branches:
                 branch.print_tree(maxdepth=maxdepth-1, level=level+1)
 
-    def swap_with(self, node):
+    def swap_for(self, node):
         #self.print_info()
         if self.trunk:
             self.trunk.branches.append(node)
             self.trunk.branches.remove(self)
+        # this self.branches is probably the issue
+        node.trunk = self.trunk
         node.assign_branches(self.branches)
+        logger.debug('varcheck. trunk should = {}.\nvars: {}'.format(self.trunk, vars(node)))
 
     def get_level(self, level):
         if level == 0:
@@ -196,11 +209,30 @@ def scrape_metadata(node):
     # doesn't seem too bad. keep a level head, slow pace, breaks 
     # for the brain.
 
-    metadata = node.data['fname'] + ' testdata'
+    #metadata = node.data['fname'] + ' testdata'
     new_node = Node()
     new_node.data = node.data
+    # this is where we're actually pulling the metadata
+    metadata = 'placeholder'
+    trunknode = node.trunk
+
+    cwd = trunknode.data['cwd']
+    fname = trunknode.data['fname']    
+    with open(cwd+'/'+fname) as f:
+        content = f.read()
+    logger.debug('    > scraping {} metadata...'.format(fname))
+    soup = bsp(content, 'html.parser')
+    metadata = soup.body.table.find_next_sibling().text
+    # this applies the branchrules lambda to the parsed soup
+    # TODO TODO TODO TODO TODO
+    # NEXT STEP: JUST PULL THE ENTIRE METADATA SECTION, 
+    # DON'T TRY TO FORMAT IT IN ANY WAY
+    #branch_url_list = branchrules(soup)
+
+    
+
     new_node.data['metadata'] = metadata
-    node.swap_with(new_node)
+    node.swap_for(new_node)
     #logger.debug('newnode metadata = {}'.format(new_node.data['metadata']))
     return node
     

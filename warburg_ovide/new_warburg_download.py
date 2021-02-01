@@ -80,6 +80,8 @@ class Node:
                 print(prefix[:-4] + '    ' + self.data['url'])
             if 'metadata' in self.data:
                 print(prefix[:-4] + '    ' + self.data['metadata'])
+                print(prefix[:-4] + '  - {}'.format(self.data['metadata_dict']))
+                print(prefix[:-4] + '  - ' + self.data['fol'])
             for branch in self.branches:
                 branch.print_tree(maxdepth=maxdepth-1, level=level+1)
 
@@ -125,7 +127,7 @@ def expand_branches(node, branchrules, dirnamerules, urlrules, fnamerules, debug
     with open(cwd+'/'+fname) as f:
         content = f.read()
     logger.debug('    > expanding {} branches...'.format(fname))
-    soup = bsp(content, 'html.parser')
+    soup = bsp(content, 'html5lib')
     # this applies the branchrules lambda to the parsed soup
     branch_url_list = branchrules(soup)
     # TODO BS4 Tag has no compare operator for < and >
@@ -213,6 +215,7 @@ def scrape_metadata(node):
     new_node = Node()
     new_node.data = node.data
     # this is where we're actually pulling the metadata
+    # i can't believe it, we're actually pulling the metadata we need
     metadata = 'placeholder'
     trunknode = node.trunk
 
@@ -221,17 +224,36 @@ def scrape_metadata(node):
     with open(cwd+'/'+fname) as f:
         content = f.read()
     logger.debug('    > scraping {} metadata...'.format(fname))
-    soup = bsp(content, 'html.parser')
-    metadata = soup.body.table.find_next_sibling().text
-    # this applies the branchrules lambda to the parsed soup
-    # TODO TODO TODO TODO TODO
-    # NEXT STEP: JUST PULL THE ENTIRE METADATA SECTION, 
-    # DON'T TRY TO FORMAT IT IN ANY WAY
-    #branch_url_list = branchrules(soup)
+    soup = bsp(content, 'html5lib')
+    metadata = soup.body.table.find_next_sibling()
+    metadata_text = metadata.text
+    # build our silly little metadata dict
+    metadata_dict = {}
+    cur_key = ''
+    # TODO TODO TODO
+    # this is reading certain lines as > just a heading / class
+    # for instance: 
+    # 'found metadata class: -> the story of cadmus .... LITERATUREAncient -> ...' 
+    # and so on
+    for tr in metadata.find_all('tr')[1:]:
+        if tr.find('span', class_='grey_small') is not None:
+            logger.debug('found metadata class: {}'.format(tr.text))
+            cur_key = tr.text
+            metadata_dict[cur_key] = ''
+        else:
+            if cur_key != '':
+                metadata_dict[cur_key] = metadata_dict[cur_key] + tr.text
+                
+    tables = soup.body.table.find_next_siblings()
+    fol_text_raw = [x.text for x in tables[1].contents if 'fol.' in x. text]
+    if len(fol_text_raw) > 0:
+        fol = fol_text_raw[0][fol_text_raw[0].find('fol.'):]
+    else:
+        fol = ''
 
-    
-
-    new_node.data['metadata'] = metadata
+    new_node.data['metadata'] = metadata_text
+    new_node.data['metadata_dict'] = metadata_dict
+    new_node.data['fol'] = fol
     node.swap_for(new_node)
     #logger.debug('newnode metadata = {}'.format(new_node.data['metadata']))
     return node

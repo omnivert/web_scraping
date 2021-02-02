@@ -68,8 +68,10 @@ class Node:
             prefix = '+-- '
             for _ in range(level):
                 prefix = '|   ' + prefix
-            fname = self.data['fname'] if len(self.data['fname']) < 20 else self.data['fname'][:18] + '...'
+            # fname = self.data['fname'] if len(self.data['fname']) < 20 else self.data['fname'][:18] + '...'
+            fname = self.data['fname']
             print(prefix + fname)
+            print(prefix[:-4] + '    ' + self.data['cwd'] + '/' + self.data['fname'])
             # this was useful and the right way to find obj attrs
             # but for now, need to put these prints somewhere else to 
             # trace things
@@ -245,7 +247,7 @@ def scrape_metadata(node):
                 metadata_dict[cur_key] = metadata_dict[cur_key] + tr.text
                 
     tables = soup.body.table.find_next_siblings()
-    fol_text_raw = [x.text for x in tables[1].contents if 'fol.' in x. text]
+    fol_text_raw = [x.text for x in tables[1].find_all('tr') if 'fol.' in x.text]
     if len(fol_text_raw) > 0:
         fol = fol_text_raw[0][fol_text_raw[0].find('fol.'):]
     else:

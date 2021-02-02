@@ -2,6 +2,7 @@ import re, requests, csv, logging
 from bs4 import BeautifulSoup as bsp
 from os import walk
 from pathlib import Path as pth
+from itertools import chain
 
 # TINY LITTLE RETHINK
 # i need to track the tree: ovide -> cycle name -> fol no.
@@ -50,11 +51,11 @@ class Node:
             branch.trunk = self
 
     def assign_branches(self, branchlist):
-        logger.debug('{}.assign_branches({})'.format(self.data['fname'], branchlist))
+        #logger.debug('{}.assign_branches({})'.format(self.data['fname'], branchlist))
         for branch in branchlist:
             branch.trunk = self
             self.branches.append(branch)
-            logger.debug('varcheck. trunk should = {}.\nvars: {}'.format(branch.trunk, vars(branch)))
+            #logger.debug('varcheck. trunk should = {}.\nvars: {}'.format(branch.trunk, vars(branch)))
 
     def print_info(self):
         print('self.trunk: {}'.format(self.trunk))
@@ -95,7 +96,7 @@ class Node:
         # this self.branches is probably the issue
         node.trunk = self.trunk
         node.assign_branches(self.branches)
-        logger.debug('varcheck. trunk should = {}.\nvars: {}'.format(self.trunk, vars(node)))
+        #logger.debug('varcheck. trunk should = {}.\nvars: {}'.format(self.trunk, vars(node)))
 
     def get_level(self, level):
         if level == 0:
@@ -140,12 +141,16 @@ def expand_branches(node, branchrules, dirnamerules, urlrules, fnamerules, debug
     pth('./{}'.format(cwd)).mkdir(parents=True, exist_ok=True)
     # now for the population of branch nodes
     branches = []
+    urls = []
     for i, branch_url_suffix in enumerate(branch_url_list):
         if limit > 0 and i >= limit:
             break
         # TODO we need this on the last pass to just make the correct format
         # final image URL - template is listed in the last call to branchnodes
         branch_url = urlrules(branch_url_suffix)
+        if branch_url in urls:
+            continue
+        urls.append(branch_url)
         # crazy this next line actually works
         branch_fname = fnamerules(branch_url)
         branches.append(Node(trunk=node, url=branch_url, fname=branch_fname, cwd=cwd))
@@ -239,7 +244,7 @@ def scrape_metadata(node):
     # and so on
     for tr in metadata.find_all('tr')[1:]:
         if tr.find('span', class_='grey_small') is not None:
-            logger.debug('found metadata class: {}'.format(tr.text))
+            #logger.debug('found metadata class: {}'.format(tr.text))
             cur_key = tr.text
             metadata_dict[cur_key] = ''
         else:
@@ -254,11 +259,61 @@ def scrape_metadata(node):
         fol = ''
 
     new_node.data['metadata'] = metadata_text
-    new_node.data['metadata_dict'] = metadata_dict
+    new_node.data.update(metadata_dict)
     new_node.data['fol'] = fol
+    cycle_fname = trunknode.trunk.data['fname']
+    new_node.data['fname'] = ''.join('_' if c in '(),' else c for c in new_node.data['fname'].replace('template', cycle_fname.replace('.html', '-') + fol.replace('.', '').replace(' ', '_')))
+    if 'LITERATURE' in new_node.data:
+        new_node.data['cycle'] = new_node.data['LITERATURE'][new_node.data['LITERATURE'].find('Cycles')+9:]
+    new_node.data['cycle_code'] = new_node.data['fname'][:new_node.data['fname'].find('-')]
     node.swap_for(new_node)
     #logger.debug('newnode metadata = {}'.format(new_node.data['metadata']))
     return node
+
+def dictify(nodelist):
+    # first we make a dict w every node
+    dictlist = []
+    for node in nodelist:
+        data = node.data.copy()
+        dictlist.append(data)
+
+    # https://stackoverflow.com/questions/10482439/make-sure-all-dicts-in-a-list-have-the-same-keys
+    all_keys = set(chain.from_iterable(dictlist))
+    for item in dictlist:
+         item.update({key: '' for key in all_keys if key not in item})
+    return dictlist
+
+def gen_wget_commands(nodelist):
+    wgetlist = []
+    for node in nodelist:
+        wgetlist.append('wget -q -O {}/{} {}'.format(node.data['cwd'], node.data['fname'], node.data['url']))
+    return list(set(wgetlist))
+
+    
+def check_collisions(nodelist, key):
+    print('checking for {} collisions...'.format(key))
+    checked = {}
+    collided = 0
+    for node in nodelist:
+        to_check = node.data[key]
+        #print('checking {}...'.format(to_check))
+        if to_check in checked:
+            print('{} COLLISION: {} is a duplicate'.format(key, to_check))
+            print('    collision info:')
+            print('    - collider')
+            print('      - trunk: {}/{}'.format(node.trunk.data['cwd'], node.trunk.data['fname']))
+            print('      - url: {}'.format(node.trunk.data['url']))
+            print('    - collidee')
+            print('      - trunk: {}/{}'.format(checked[to_check][0].trunk.data['cwd'], checked[to_check][0].trunk.data['fname']))
+            print('      - url: {}'.format(checked[to_check][0].trunk.data['url']))
+            collided += 1
+            checked[to_check].append(node)
+        else:
+            checked[to_check] = [node]
+    if collided == 0:
+        print('no collisions detected')
+    else:
+        print('detected {} collisions'.format(collided))
     
 ###### DOWNLOAD ALL REQUIRED HTML PAGES ######
 
@@ -281,7 +336,7 @@ cycles = expand_branches(cycles_trunk,
                          (lambda x, y: x + '/' + y.split('.')[0] + '.d'), 
                          (lambda x: warburg_search_url + x['href']), 
                          (lambda x: 'cycle_' + x[111:] + '.html'),
-                         sort=True, limit=3)
+                         sort=True)
 cycles_trunk.assign_branches(cycles)
 download_pages(cycles)
 
@@ -292,7 +347,7 @@ for cycle in cycles_trunk.get_level(1):
                           (lambda x, y: x + '/' + y.split('.')[0] + '.d'), 
                           (lambda x: warburg_search_url + x['href']), 
                           (lambda x: 'record_' + x[72:] + '.html'),
-                          sort=True, limit=3, debug=True)
+                          sort=True, debug=True)
     cycle.assign_branches(fols)
     download_pages(fols)
 
@@ -317,28 +372,27 @@ for fol in cycles_trunk.get_level(2):
                             (lambda x: [x.img.find_parent()['href']]), 
                             (lambda x, y: 'images'), 
                             (lambda x: re.sub(r'(\.[a-z]+)+$', '.jpeg', x) if 'gallica' in x else warburg_vpc_url + 'pdfs_wi_id/' + x[21:] + '.pdf'), 
-                            (lambda x: 'template_'+x.split('/')[-1]),
-                            debug=True, limit=1)
+                            (lambda x: 'template-'+x.split('/')[-1]),
+                            debug=True)
     # annoyingly, i think this needs to have info from fol and images
     # fol is a single node
     # images is a length-1 list
     # NEVER MIND WE CAN DO images[0].trunk
     fol.assign_branches(images)
-# REMEMBER THIS IS WEIRD
-# RETURN OF SCRAPE METADATA IS JUST 1 NODE
     images = scrape_metadata(images[0])
 
-cycles_trunk.print_tree()
-exit(0)
-    
-# TODO:
-# if i remember correctly, what i was thinking yday was that each thing
-# would get a placeholder name, after which we do an additional pass to 
-# "scrape metadata", in the process renaming the problem fname. 
-# THEN we download it
 
-                             
-# more dev info:
-#   htmlpages/cycles.d/cycle_17071.d/record_94084.html
-#   url http://gallica.bnf.fr/ark:/12148/bpt6k8523959/f60.highres
-#
+# cycles_trunk.print_tree()
+#dictlist = dictify(cycles_trunk.get_level(3))
+#for d in dictlist:
+#    print(d['cycle'], '|', d['cycle_code'], '|', d['fname'])
+
+l1 = cycles_trunk.get_level(1)
+l2 = cycles_trunk.get_level(2)
+l3 = cycles_trunk.get_level(3)
+#check_collisions(l1, 'fname')
+#check_collisions(l2, 'fname')
+#check_collisions(l3, 'fname')
+wgets = gen_wget_commands(l3)
+for wget in wgets:
+    print(wget)

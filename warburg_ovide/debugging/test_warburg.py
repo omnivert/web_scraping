@@ -1,6 +1,6 @@
 from bs4 import BeautifulSoup as bsp
-# with open('/home/forkk/web_scraping/warburg_ovide/htmlpages/cycles.d/cycle_17071.d/record_94092.html') as f:
-with open('/home/forkk/web_scraping/warburg_ovide/htmlpages/cycles.d/cycle_4814.d/record_104295.html') as f:
+# with open('../htmlpages/cycles.d/cycle_17071.d/record_94092.html') as f:
+with open('../htmlpages/cycles.d/cycle_4814.d/record_104295.html') as f:
     content = f.read()
 
 soup = bsp(content, 'html5lib')
